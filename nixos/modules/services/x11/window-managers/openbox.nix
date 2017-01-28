@@ -218,7 +218,177 @@ in
         description = "Specifies where on the screen to show the position when Fixed. Takes x and y coordinates.";
       };
     };
-    # + Applications + Keyboard + Mouse + Margins + Menu + Dock
+    applications = mkOption {
+      type = with types; listOf (submodule {
+        options = {
+          # Window selectors
+          name = mkOption {
+            type = types.str;
+            default = "";
+            example = "google-chrome";
+            description = "The window's _OB_APP_NAME property.";
+          };
+          class = mkOption {
+            type = types.str;
+            default = "";
+            example = "Google-chrome";
+            description = "The window's _OB_APP_CLASS property.";
+          };
+          groupname = mkOption {
+            type = types.str;
+            default = "";
+            example = "*";
+            description = "The window's _OB_APP_GROUP_NAME property.";
+          };
+          groupclass = mkOption {
+            type = types.str;
+            default = "";
+            example = "*";
+            description = "The window's _OB_APP_GROUP_CLASS property.";
+          };
+          role = mkOption {
+            type = types.str;
+            default = "";
+            example = "*";
+            description = "The window's _OB_APP_ROLE property.";
+          };
+          title = mkOption {
+            type = types.str;
+            default = "";
+            example = "Google Chrome";
+            description = "The window's _OB_APP_TITLE property.";
+          };
+          type = mkOption {
+            type = types.str;
+            default = "";
+            example = "*";
+            description = "The window's _OB_APP_TYPE property.";
+          };
+
+          # Configuration options
+          decor = mkOption {
+            type = types.bool;
+            default = true;
+            example = true;
+            description = "Enable or disable window decorations.";
+          };
+          shade = mkOption {
+            type = types.bool;
+            default = false;
+            example = false;
+            description = "Make the window shaded when it appears.";
+          };
+          position = mkOption {
+            type = with types; nullOr (submodule {
+              options = {
+                force = mkOption {
+                  type = types.bool;
+                  default = false;
+                  example = false;
+                  description = "If enabled, the window will be placed here even if it says you want it elsewhere.";
+                };
+                x = mkOption {
+                  type = with types; either int str;
+                  default = "center";
+                  example = "+-400";
+                  description = "The x coordinate to place the window.";
+                };
+                y = mkOption {
+                  type = with types; either int str;
+                  default = 200;
+                  example = "--200";
+                  description = "The y coordinate to place the window.";
+                };
+                monitor = mkOption {
+                  type = with types; either int (enum ["mouse"]);
+                  default = "mouse";
+                  example = 1;
+                  description = "The (xinerama) monitor to place the window on.";
+                };
+              };
+            });
+            default = null;
+            example = {
+              force = false;
+              x = "center";
+              y = 200;
+              monitor = 1;
+            };
+            description = "The position used when placing the new window.";
+          };
+          size = {
+            width = mkOption {
+              type = with types; either int string;
+              default = "default";
+              example = 20;
+              description = "The width to make the window.";
+            };
+            height = mkOption {
+              type = with types; either int string;
+              default = "default";
+              example = "30%";
+              description = "The height to make the window.";
+            };
+          };
+          focus = mkOption {
+            type = types.bool;
+            default = true;
+            example = true;
+            description = "Whether the window should try to take focus when it appears.";
+          };
+          desktop = mkOption {
+            type = with types; either int (enum ["all"]);
+            default = "all"; # Is this the correct default?
+            example = 1;
+            description = "The desktop to place the window onto.";
+          };
+          layer = mkOption {
+            type = types.enum ["below" "normal" "above"];
+            default = "normal";
+            example = "normal";
+            description = "The layer to place the window onto.";
+          };
+          iconic = mkOption {
+            type = types.bool;
+            default = false;
+            example = false;
+            description = "Make the window iconified when it appears.";
+          };
+          skipPager = mkOption {
+            type = types.bool;
+            default = false;
+            example = false;
+            description = "Request not to be shown in pagers.";
+          };
+          skipTaskbar = mkOption {
+            type = types.bool;
+            default = false;
+            example = false;
+            description = "Request not to be shown in taskbar/window-cycling.";
+          };
+          fullscreen = mkOption {
+            type = types.bool;
+            default = false;
+            example = false;
+            description = "Make the window in fullscreen mode when it appears.";
+          };
+          maximized = mkOption {
+            type = with types; either bool (enum ["Horizontal" "Vertical"]);
+            default = false;
+            example = "Horizontal";
+            description = "Make the window maximized when it appears.";
+          };
+        };
+      });
+      default = null;
+      example = {
+        class = "MPlayer";
+        desktop = "all";
+        layer = "above";
+      };
+      description = "Per-application settings.";
+    };
+    # + Keyboard + Mouse + Margins + Menu + Dock
   };
   
   config = mkIf cfg.enable rec {
@@ -291,6 +461,45 @@ in
               else ""
           }
         </resize>
+        <applications>
+        ${
+          let
+            formatApplication = {name, class, groupname, groupclass, role, title, type, decor,
+                                 shade, position, size, focus, desktop, layer, iconic, skipPager,
+                                 skipTaskbar, fullscreen, maximized}: ''
+            <application name="${name}" class="${class}" groupname="${groupname}" groupclass="${groupclass}"
+                         role="${role}" title="${title}" type="${type}">
+              <decor>${if decor then "yes" else "no"}</decor>
+              <shade>${if shade then "yes" else "no"}</decor>
+              ${
+              if position != null then ''
+              <position force="${if position.force then "yes" else "no"}">
+                <x>${toString position.x}</x>
+                <y>${toString position.y}</y>
+                <monitor>${toString position.monitor}</monitor>
+              </position>
+              '' else ""
+              }
+              <size>
+                <width>${toString size.width}</width>
+                <height>${toString size.height}</height>
+              </size>
+              <focus>${if focus then "yes" else "no"}</focus>
+              <desktop>${toString desktop}</desktop>
+              <layer>${layer}</layer>
+              <iconic>${if iconic then "yes" else "no"}</iconic>
+              <skip_pager>${if skipPager then "yes" else "no"}</skip_pager>
+              <skip_taskbar>${if skipTaskbar then "yes" else "no"}</skip_taskbar>
+              <fullscreen>${if fullscreen then "yes" else "no"}</fullscreen>
+              <maximized>${if builtins.isString maximized
+                             then maximized
+                             else if maximized then "yes" else "no"}</maximized>
+            </application>
+            '';
+          in
+          toString (map formatApplications cfg.applications)
+        }
+        </applications>
       </openbox_config>
     '';
     services.xserver.windowManager = {
